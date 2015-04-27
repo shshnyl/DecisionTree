@@ -9,16 +9,8 @@
 using namespace std;
 
 struct attribute { // attribute
-    //bool attrType; // true for numeric type, false for nominal
     bool attrAvail; // true for good data, false for missing data
     double attrVal; // value of the attribute
-
-    /*
-    attribute(bool avail, double value) {
-        attrAvail = avail;
-        attrVal = value;
-    }
-    */
 };
 
 struct instance { // instance
@@ -92,60 +84,34 @@ public:
         this->left = new binTreeNode(instSchema);
         this->right = new binTreeNode(instSchema);
         instance *tmpInst; attribute tmpAttr;
-        if (instSchema->attrTypes[attrIdx]) { // numeric 
-            for (int i = 0; i < posInstSet.size(); i++) {
-                tmpInst = posInstSet[i];
-                tmpAttr = (tmpInst->attrs)[attrIdx];
-                if (tmpAttr.attrAvail) { // normal data
-                    if (tmpAttr.attrVal <= attrThres) 
-                        this->left->addInstance(tmpInst, true);
-                    else 
-                        this->right->addInstance(tmpInst, true);
-                }
-                else { // bad data
-                    ; // to be implemented
-                }
+        for (int i = 0; i < posInstSet.size(); i++) {
+            tmpInst = posInstSet[i];
+            tmpAttr = (tmpInst->attrs)[attrIdx];
+            if (tmpAttr.attrAvail) { // normal data
+                if (instSchema->attrTypes[attrIdx] && tmpAttr.attrVal <= attrThres) // numeric and no greater than
+                    this->left->addInstance(tmpInst, true);
+                else if (!instSchema->attrTypes[attrIdx] && tmpAttr.attrVal == attrThres) // nominal and equal
+                    this->left->addInstance(tmpInst, true);
+                else 
+                    this->right->addInstance(tmpInst, true);
             }
-            for (int i = 0; i < negInstSet.size(); i++) {
-                tmpInst = negInstSet[i];
-                tmpAttr = (tmpInst->attrs)[attrIdx];
-                if (tmpAttr.attrAvail) { // normal data
-                    if (tmpAttr.attrVal <= attrThres) 
-                        this->left->addInstance(tmpInst, false);
-                    else 
-                        this->right->addInstance(tmpInst, false);
-                }
-                else { // bad data
-                    ; // to be implemented
-                }
+            else { // bad data
+                ; // to be implemented
             }
         }
-        else { // nominal data
-             for (int i = 0; i < posInstSet.size(); i++) {
-                tmpInst = posInstSet[i];
-                tmpAttr = (tmpInst->attrs)[attrIdx];
-                if (tmpAttr.attrAvail) { // normal data
-                    if (tmpAttr.attrVal == attrThres) 
-                        this->left->addInstance(tmpInst, true);
-                    else 
-                        this->right->addInstance(tmpInst, true);
-                }
-                else { // bad data
-                    ; // to be implemented
-                }
+        for (int i = 0; i < negInstSet.size(); i++) {
+            tmpInst = negInstSet[i];
+            tmpAttr = (tmpInst->attrs)[attrIdx];
+            if (tmpAttr.attrAvail) { // normal data
+                if (instSchema->attrTypes[attrIdx] && tmpAttr.attrVal <= attrThres) // numeric and no greater than
+                    this->left->addInstance(tmpInst, false);
+                else if ((!instSchema->attrTypes[attrIdx]) && tmpAttr.attrVal == attrThres) // nominal and equal
+                    this->left->addInstance(tmpInst, false);
+                else 
+                    this->right->addInstance(tmpInst, false);
             }
-            for (int i = 0; i < negInstSet.size(); i++) {
-                tmpInst = negInstSet[i];
-                tmpAttr = (tmpInst->attrs)[attrIdx];
-                if (tmpAttr.attrAvail) { // normal data
-                    if (tmpAttr.attrVal <= attrThres) 
-                        this->left->addInstance(tmpInst, false);
-                    else 
-                        this->right->addInstance(tmpInst, false);
-                }
-                else { // bad data
-                    ; // to be implemented
-                }
+            else { // bad data
+                ; // to be implemented
             }
         }
     }
