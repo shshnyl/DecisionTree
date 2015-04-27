@@ -1,4 +1,4 @@
-#include "binTree.h"
+#include "main.h"
 
 using namespace std;
 
