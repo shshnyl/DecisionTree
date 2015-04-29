@@ -3,44 +3,27 @@
 #include <vector>
 #include <cmath>
 #include <queue> 
-#define NUMATTRS 14
+#include "instance.h"
 #define GAINRATIOTHRES 0.1
 
 using namespace std;
 
-struct attribute { // attribute
-    bool attrAvail; // true for good data, false for missing data
-    double attrVal; // value of the attribute
-};
-
-struct instance { // instance
-    attribute attrs[NUMATTRS];
-    bool flag;
-};
-
-class schema { // schema for all the instances in a certain set(subtree)
-public: 
-    int attrNum = NUMATTRS;
-    string attrNames[NUMATTRS]; // names for the attrs
-    bool attrTypes[NUMATTRS]; // true for numeric ones, false for nominal ones
-};
-
-class binTreeNode {
+class treeNode {
 private:
-    binTreeNode *left = NULL;
-    binTreeNode *right = NULL;
+    vector<treeNode *> children; // children ptrs when split over nominal attr
+    treeNode * left = NULL, * right = NULL; // children ptrs when split over numeric attr
     int attrIdx = -1; // index the attrs to split 
-    double attrThres = 0.0; // if numeric type, left <= attrThres, right > attrThres; if nominal type, left == attrThres, right != attrThres
+    double attrThres = 0.0; // if numeric type, left <= attrThres, right > attrThres; if nominal type 
     schema *instSchema = NULL; // schema of instances
     vector<instance *> posInstSet; // set of positive instances TO BE split
     vector<instance *> negInstSet; // set of negative instances TO BE split
 
 public:
-    binTreeNode(schema *oriSchema) { // empty instance sets
+    treeNode(schema *oriSchema) { // empty instance sets
         this->instSchema = oriSchema;
     }
 
-    binTreeNode(schema *oriSchema, vector<instance *> instSet1, vector<instance *> instSet2) { // given instance sets
+    treeNode(schema *oriSchema, vector<instance *> instSet1, vector<instance *> instSet2) { // given instance sets
         this->instSchema = oriSchema;
         this->posInstSet = instSet1; 
         this->negInstSet = instSet2;
@@ -61,7 +44,10 @@ public:
         double maxGR = GAINRATIOTHRES;
         for (int i = 0; i < instSchema->attrNum; i++) { // looking for the best attr to split over
             double threshold, gainratio;
-            this->trySplitNumeric(i, &threshold, &gainratio);
+            if (instSchema->attrTypes[i])
+                this->trySplitNumeric(i, &threshold, &gainratio);
+            else 
+                this->trySplitNominal(i, &threshold, &gainratio);
             if (gainratio > maxGR) {
                 maxIdx = i;
                 maxThres = threshold;
@@ -77,23 +63,26 @@ public:
         }
     }
 
-    bool doSplit() { // do the split over given attr and threshold
+    bool doSplit() {
+        if (instSchema->)
+        ;
+    }
+
+    bool doSplitNumberic() { // do the split over given attr and threshold
         if (attrIdx == -1) 
             return false;
         // do the split over attr with index attrIdx, and threshold attrThres
-        this->left = new binTreeNode(instSchema);
-        this->right = new binTreeNode(instSchema);
+        this->left = new treeNode(instSchema);
+        this->right = new treeNode(instSchema);
         instance *tmpInst; attribute tmpAttr;
         for (int i = 0; i < posInstSet.size(); i++) {
             tmpInst = posInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
             if (tmpAttr.attrAvail) { // normal data
-                if (instSchema->attrTypes[attrIdx] && tmpAttr.attrVal <= attrThres) // numeric and no greater than
-                    this->left->addInstance(tmpInst, true);
-                else if (!instSchema->attrTypes[attrIdx] && tmpAttr.attrVal == attrThres) // nominal and equal
+                if (tmpAttr.attrVal <= attrThres) // numeric and no greater than
                     this->left->addInstance(tmpInst, true);
                 else 
-                    this->right->addInstance(tmpInst, true);
+                    this->rigth->addInstance(tmpInst, true);
             }
             else { // bad data
                 ; // to be implemented
@@ -103,9 +92,7 @@ public:
             tmpInst = negInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
             if (tmpAttr.attrAvail) { // normal data
-                if (instSchema->attrTypes[attrIdx] && tmpAttr.attrVal <= attrThres) // numeric and no greater than
-                    this->left->addInstance(tmpInst, false);
-                else if ((!instSchema->attrTypes[attrIdx]) && tmpAttr.attrVal == attrThres) // nominal and equal
+                if (tmpAttr.attrVal <= attrThres) // numeric and no greater than
                     this->left->addInstance(tmpInst, false);
                 else 
                     this->right->addInstance(tmpInst, false);
@@ -114,6 +101,33 @@ public:
                 ; // to be implemented
             }
         }
+        return true;
+    }
+
+    bool doSplitNominal() { // do the split over given attr on each value 
+         if (attrIdx == -1) 
+            return false;
+        // do the split over attr with index attrIdx, and threshold attrThres
+        instance *tmpInst; attribute tmpAttr;
+        for (int i = 0; i < posInstSet.size(); i++) {
+            tmpInst = posInstSet[i];
+            tmpAttr = (tmpInst->attrs)[attrIdx];
+            if (tmpAttr.attrAvail) { // normal data
+            }
+            else { // bad data
+                ; // to be implemented
+            }
+        }
+        for (int i = 0; i < negInstSet.size(); i++) {
+            tmpInst = negInstSet[i];
+            tmpAttr = (tmpInst->attrs)[attrIdx];
+            if (tmpAttr.attrAvail) { // normal data
+            }
+            else { // bad data
+                ; // to be implemented
+            }
+        }
+        return true;   
     }
 
     void trySplitNumeric(int index, double *threshold, double *gr) { // split over numeric attr
@@ -157,20 +171,25 @@ public:
 
 };
 
-class binDecisionTree {
+class decisionTree {
 private:
-    binTreeNode * root = NULL; // default an empty tree
-
-public:
+    treeNode * root = NULL; // default an empty tree
+    vector<instance> instSet; // all the training data
     schema instSchema;
-    binDecisionTree(vector<instance> &instances) {
-        this->root = this->initTree(instances);
+public:
+    decisionTree(schema dataSchema, vector<instance> &dataSet) {
+        this->instSchema = dataSchema;
+        this->instSet = dataSet;
+        this->root = this->initTree(dataSet);
     };
 
-    binTreeNode * initTree(vector<instance> &instances);
+    treeNode * initTree(vector<instance> &instances);
+    bool classifyInst() {
+        return false;
+    }
 };
 
-binTreeNode * binDecisionTree::initTree(vector<instance> &instances) { // recursively generate the tree
+treeNode * decisionTree::initTree(vector<instance> &instances) { // recursively generate the tree
     if (true) { // base cases
         ;
     }
