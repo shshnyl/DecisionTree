@@ -9,26 +9,7 @@
 using namespace std;
 
 class treeNode {
-private:
-    vector<treeNode *> children; // children ptrs when split over nominal attr
-    treeNode * left = NULL, * right = NULL; // children ptrs when split over numeric attr
-    int attrIdx = -1; // index the attrs to split 
-    double attrThres = 0.0; // if numeric type, left <= attrThres, right > attrThres; if nominal type 
-    schema *instSchema = NULL; // schema of instances
-    vector<instance *> posInstSet; // set of positive instances TO BE split
-    vector<instance *> negInstSet; // set of negative instances TO BE split
-
 public:
-    treeNode(schema *oriSchema) { // empty instance sets
-        this->instSchema = oriSchema;
-    }
-
-    treeNode(schema *oriSchema, vector<instance *> instSet1, vector<instance *> instSet2) { // given instance sets
-        this->instSchema = oriSchema;
-        this->posInstSet = instSet1; 
-        this->negInstSet = instSet2;
-    }
-
     void addInstance(instance * inst, bool isPositive) { // add instance
         if (isPositive)
             this->posInstSet.push_back(inst);
@@ -36,15 +17,56 @@ public:
             this->negInstSet.push_back(inst);
     }
 
-    bool trySplit() { // if the node need to be split
-        // if true, split it and update the attrIndex;
+    void split(schema &instSchema) { // split through the sub-tree
+        if (trySplit(instSchema)) { // can split
+            if (doSplit(instSchema)) { // successfully split the data
+                if (instSchema.attrTypes[attrIdx]) { // numeric
+                    this->left->split(instSchema);
+                    this->right->split(instSchema);
+                }
+                else { // nominal
+                    for (int i = 0; i < this->children.size(); i++)
+                        (this->children[i])->split(instSchema);
+                }
+            }
+        }
+        return;
+    }
+
+    string toString(schema &instSchema) { // to string
+        // leaf node
+        if (attrIdx == -1)
+            return "leaf node";
+        // internal node
+        string result = "";
+        result += "the attribute is: ";
+        result += instSchema.attrNames[attrIdx];
+        result += ", the type is: ";
+        if (instSchema.attrTypes[attrIdx]) 
+            result += "Numerical";
+        else
+            result += "Nominal";
+        result += ", the threshold is: ";
+        result += this->attrThres;
+        return result;
+    }
+
+private:
+    int attrIdx = -1; // index the attrs to split 
+    double attrThres = 0.0; // if numeric type, left <= attrThres, right > attrThres; if nominal type 
+    vector<instance *> posInstSet; // set of positive instances TO BE split
+    vector<instance *> negInstSet; // set of negative instances TO BE split
+    treeNode * left = NULL, * right = NULL; // children ptrs when split over numeric attr
+    vector<treeNode *> children; // children ptrs when split over nominal attr
+    
+    bool trySplit(schema instSchema) { // if the node need to be split
         // otherwise, set attrIndex to be -1 
         int maxIdx = -1;
         double maxThres = 0.0;
         double maxGR = GAINRATIOTHRES;
-        for (int i = 0; i < instSchema->attrNum; i++) { // looking for the best attr to split over
+        for (int i = 0; i < instSchema.attrNum; i++) { // looking for the best attr to split over
             double threshold, gainratio;
-            if (instSchema->attrTypes[i])
+            if (instSchema.attrTypes[i])
                 this->trySplitNumeric(i, &threshold, &gainratio);
             else 
                 this->trySplitNominal(i, &threshold, &gainratio);
@@ -63,17 +85,28 @@ public:
         }
     }
 
-    bool doSplit() {
-        if (instSchema->)
-        ;
+    void trySplitNumeric(int index, double *threshold, double *gr) { // split over numeric attr
+        // sort over the attribute first
+        // then traverse all the instances
+    }
+
+    void trySplitNominal(int index, double *threshold, double *gr) { // split over nominal attr
+        // to be impletmented
+    }
+
+    bool doSplit(schema instSchema) {
+        if (instSchema.attrTypes[attrIdx]) // numeric ones
+            return this->doSplitNumberic();
+        else // nominal ones
+            return this->doSplitNominal();
     }
 
     bool doSplitNumberic() { // do the split over given attr and threshold
         if (attrIdx == -1) 
             return false;
         // do the split over attr with index attrIdx, and threshold attrThres
-        this->left = new treeNode(instSchema);
-        this->right = new treeNode(instSchema);
+        this->left = new treeNode();
+        this->right = new treeNode();
         instance *tmpInst; attribute tmpAttr;
         for (int i = 0; i < posInstSet.size(); i++) {
             tmpInst = posInstSet[i];
@@ -82,7 +115,7 @@ public:
                 if (tmpAttr.attrVal <= attrThres) // numeric and no greater than
                     this->left->addInstance(tmpInst, true);
                 else 
-                    this->rigth->addInstance(tmpInst, true);
+                    this->right->addInstance(tmpInst, true);
             }
             else { // bad data
                 ; // to be implemented
@@ -130,71 +163,40 @@ public:
         return true;   
     }
 
-    void trySplitNumeric(int index, double *threshold, double *gr) { // split over numeric attr
-        // sort over the attribute first
-        // then traverse all the instances
-    }
-
-    void trySplitNominal(int index, double *threshold, double *gr) { // split over nominal attr
-        // to be impletmented
-    }
-
     double entropy() { // by default, calculate the entropy before splitting  
         return entropy(this->posInstSet.size(), this->negInstSet.size());
     }
 
-    static double entropy(int num1, int num2) { // entropy if we split in 2 groups
+    double entropy(int num1, int num2) { // entropy if we split in 2 groups
         if (num1 == 0) return 0;
         if (num2 == 0) return 0;
         double sum = num1 + num2;
         double p1 = num1 / sum, p2 = num2 / sum;
         return -(p1 * log(p1) + p2 * log(p2)) / log(2.0);
     }
-
-    string toString() { // to string
-        // leaf node
-        if (attrIdx == -1)
-            return "leaf node";
-        // internal node
-        string result = "";
-        result += "the attribute is: ";
-        result += instSchema->attrNames[attrIdx];
-        result += ", the type is: ";
-        if (instSchema->attrTypes[attrIdx]) 
-            result += "Numerical";
-        else
-            result += "Nominal";
-        result += ", the threshold is: ";
-        result += this->attrThres;
-        return result;
-    }
-
 };
 
 class decisionTree {
 private:
     treeNode * root = NULL; // default an empty tree
-    vector<instance> instSet; // all the training data
     schema instSchema;
 public:
-    decisionTree(schema dataSchema, vector<instance> &dataSet) {
+    decisionTree(schema dataSchema) {
         this->instSchema = dataSchema;
-        this->instSet = dataSet;
-        this->root = this->initTree(dataSet);
+        this->root = NULL; 
     };
 
-    treeNode * initTree(vector<instance> &instances);
-    bool classifyInst() {
+    bool train(vector<instance> &instances) {
+        this->root = new treeNode();
+        for (int i = 0; i < instances.size(); i++) // init a new treeNode with our instance
+            root->addInstance(&(instances[i]), instances[i].flag);
+        root->split(instSchema);
+
+        return true;
+    }
+
+    bool classify(instance inst) {
         return false;
     }
 };
 
-treeNode * decisionTree::initTree(vector<instance> &instances) { // recursively generate the tree
-    if (true) { // base cases
-        ;
-    }
-    else {
-        ;
-    }
-    return NULL;
-}

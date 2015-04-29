@@ -1,5 +1,5 @@
+#include <string>
 #define NUMATTRS 14
-#define GAINRATIOTHRES 0.1
 
 using namespace std;
 
