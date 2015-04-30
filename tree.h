@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <queue> 
 #include "instance.h"
 #define GAINRATIOTHRES 0.1
 
@@ -59,7 +58,7 @@ private:
     treeNode * left = NULL, * right = NULL; // children ptrs when split over numeric attr
     vector<treeNode *> children; // children ptrs when split over nominal attr
     
-    bool trySplit(schema instSchema) { // if the node need to be split
+    bool trySplit(schema &instSchema) { // if the node need to be split
         // otherwise, set attrIndex to be -1 
         int maxIdx = -1;
         double maxThres = 0.0;
@@ -88,13 +87,17 @@ private:
     void trySplitNumeric(int index, double *threshold, double *gr) { // split over numeric attr
         // sort over the attribute first
         // then traverse all the instances
+        vector<instance *> sortedInst;
+        sortInstances(index, posInstSet, negInstSet, sortedInst);
     }
 
     void trySplitNominal(int index, double *threshold, double *gr) { // split over nominal attr
         // to be impletmented
+        *threshold = 0.0;
+        *gr = -1;
     }
 
-    bool doSplit(schema instSchema) {
+    bool doSplit(schema &instSchema) {
         if (instSchema.attrTypes[attrIdx]) // numeric ones
             return this->doSplitNumberic();
         else // nominal ones
