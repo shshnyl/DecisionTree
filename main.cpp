@@ -9,52 +9,50 @@
 using namespace std;
 
 int main() {
-    string filename = "btrain.csv";
+    string filename = "btrain.csv", line, attr_val;
     vector<instance> dataSet;
-    ifstream fileTrain(filename);
-    if (!fileTrain.is_open()) 
+    ifstream file_train(filename);
+    if (!file_train.is_open()) 
         return -1;
     // create schema from the first line
-    schema sc(NUMATTRS); string attrname;
-    //bool attrtype[] = {true, true, false, true, true, true, true, true, true, true, true, true, true, true};
+    schema sc(NUMATTRS); 
     bool attrtype[] = {true, true, true, true, true, true, true, true, true, true, true, true, true};
+    getline(file_train, line); istringstream sc_parser(line);
     for (int i = 0; i < NUMATTRS; i++) {
-        getline(fileTrain, attrname, ',');
-        sc.attrNames[i] = attrname;
+        getline(sc_parser, attr_val, ',');
+        sc.attrNames[i] = attr_val;
         sc.attrTypes[i] = attrtype[i];
     }
-    getline(fileTrain, attrname, ','); // get rid of the "winner"
-    cout << attrname << endl;
+    getline(sc_parser, attr_val, ','); // get rid of the "winner"
 
     // create instance line by line
-    int count = 0; string attrvalue; 
-    while (fileTrain.good() && count < 10) {
-        count++;
+    int count = 0; 
+    while (file_train.good() && count < 10) {
         instance inst(NUMATTRS);
-        for (int j = 0; j < NUMATTRS && fileTrain.good(); j++) {
-            getline(fileTrain, attrvalue, ',');
-            if (attrvalue == "?") {
+        getline(file_train, line); istringstream inst_parser(line);
+        for (int j = 0; j < NUMATTRS; j++) {
+            getline(inst_parser, attr_val, ',');
+            if (attr_val == "?") {
                 inst.attrs[j].attrAvail = false;
                 inst.attrs[j].attrVal = -1.0;
-                cout << attrvalue << endl;
             } 
             else {
                 inst.attrs[j].attrAvail = true;
-                istringstream tmp(attrvalue);
+                istringstream tmp(attr_val);
                 tmp >> inst.attrs[j].attrVal;
-                cout << inst.attrs[j].attrVal + 100000 << endl;
+                cout << inst.attrs[j].attrVal + 100 << endl;
             }
         }
-        if (!fileTrain.good()) break; // not enough for 
-        getline(fileTrain, attrvalue, ',');
-        cout << "flag: " << attrvalue << endl;
-        if (attrvalue == "1") 
+        getline(inst_parser, attr_val, ',');
+        cout << "flag: " << attr_val << endl;
+        if (attr_val == "1") 
             inst.flag = true;
         else 
             inst.flag = false;
+        count++;
     }
 
-    fileTrain.close();
+    file_train.close();
     return 0;
 }
 
