@@ -2,7 +2,7 @@
 #include <queue>
 #include <vector>
 #include <iostream>
-#define NUMATTRS 1
+#define NUMATTRS 14
 
 using namespace std;
 
