@@ -3,7 +3,7 @@
 #include <vector>
 #include <cmath>
 #include "instance.h"
-#define GAINRATIOTHRES 0.1
+#define GAINRATIOTHRES 0.01
 
 using namespace std;
 
@@ -32,6 +32,26 @@ public:
         return;
     }
 
+    void printSubTree(schema &instSchema) {
+        cout << endl;
+        cout << this->toString(instSchema) << endl;
+        if (attrIdx != -1) {
+        cout << "threshold is: " << this->attrThres << endl;
+        this->left->printSubTree(instSchema);
+        this->right->printSubTree(instSchema);
+        }
+        else {
+            cout << "positive ones: ";
+            for (int i = 0; i < posInstSet.size(); i++) 
+                cout << posInstSet[i]->attrs[0].attrVal << " ";
+            cout << endl;
+            cout << "negative ones: ";
+            for (int i = 0; i < negInstSet.size(); i++) 
+                cout << negInstSet[i]->attrs[0].attrVal << " ";
+            cout << endl;
+        }
+    }
+
     string toString(schema &instSchema) { // to string
         // leaf node
         if (attrIdx == -1)
@@ -45,21 +65,22 @@ public:
             result += "Numerical";
         else
             result += "Nominal";
-        result += ", the threshold is: ";
-        result += this->attrThres;
+        //result += ", the threshold is: ";
+        //result += toString(this->attrThres);
         return result;
     }
 
 private:
     int attrIdx = -1; // index the attrs to split 
-    double attrThres = 0.0; // if numeric type, left <= attrThres, right > attrThres; if nominal type 
+    double attrThres = 0.0; // if numeric type, left < attrThres, right >= attrThres; if nominal type 
     vector<instance *> posInstSet; // set of positive instances TO BE split
     vector<instance *> negInstSet; // set of negative instances TO BE split
     treeNode * left = NULL, * right = NULL; // children ptrs when split over numeric attr
     vector<treeNode *> children; // children ptrs when split over nominal attr
     
     bool trySplit(schema &instSchema) { // if the node need to be split
-        // otherwise, set attrIndex to be -1 
+        if (posInstSet.size() == 0 || negInstSet.size() == 0) 
+            return false;
         int maxIdx = -1;
         double maxThres = 0.0;
         double maxGR = GAINRATIOTHRES;
@@ -69,12 +90,15 @@ private:
                 this->trySplitNumeric(i, &threshold, &gainratio);
             else 
                 this->trySplitNominal(i, &threshold, &gainratio);
+            cout << "curr gain ratio is: " << gainratio << endl;
+
             if (gainratio > maxGR) {
                 maxIdx = i;
                 maxThres = threshold;
                 maxGR = gainratio;
             }
         }
+
         if (maxIdx == -1) // nothing greater than gainratio threshold
             return false;
         else {
@@ -87,8 +111,44 @@ private:
     void trySplitNumeric(int index, double *threshold, double *gr) { // split over numeric attr
         // sort over the attribute first
         // then traverse all the instances
+        int numLeftP = 0, numLeftN = 0; // number of positive and negative ones in left subtree
+        double maxThres = -1, maxGR = -1;
+        // sort
         vector<instance *> sortedInst;
         sortInstances(index, posInstSet, negInstSet, sortedInst);
+        
+        cout << "sorted: ";
+        for (int i = 0; i < sortedInst.size(); i++) 
+            cout << sortedInst[i]->attrs[index].attrVal << ", ";
+        cout << endl; 
+        
+        // traverse to find the optimal threshold
+        maxThres = (sortedInst[0]->attrs[index]).attrVal;
+        maxGR = this->calcGR(numLeftP, numLeftN);
+        for (int i = 1; i < sortedInst.size(); i++) {
+            // count
+            if (sortedInst[i - 1]->flag) numLeftP++;
+            else numLeftN++;
+
+            double tmpThres = (sortedInst[i]->attrs[index]).attrVal;
+            double tmpGR = this->calcGR(numLeftP, numLeftN); 
+            if (tmpThres > maxThres) {
+            cout << tmpThres << ", " << tmpGR << endl;
+            cout << numLeftP << ", " << numLeftN << endl;
+            cout << entropy() << ", "; 
+            cout << entropy(numLeftP, numLeftN) << ", ";
+            cout << entropy(posInstSet.size() - numLeftP, negInstSet.size() - numLeftN) << endl;
+            }
+            if (tmpThres > maxThres) {
+                if (tmpGR > maxGR) {
+                    maxThres = tmpThres;
+                    maxGR = tmpGR;
+                }
+            }
+        }
+        // return
+        *threshold = maxThres; 
+        *gr = maxGR;
     }
 
     void trySplitNominal(int index, double *threshold, double *gr) { // split over nominal attr
@@ -98,8 +158,8 @@ private:
     }
 
     bool doSplit(schema &instSchema) {
-        if (instSchema.attrTypes[attrIdx]) // numeric ones
-            return this->doSplitNumberic();
+        if (instSchema.attrTypes[attrIdx])  // numeric ones
+            return this->doSplitNumberic(); 
         else // nominal ones
             return this->doSplitNominal();
     }
@@ -115,7 +175,7 @@ private:
             tmpInst = posInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
             if (tmpAttr.attrAvail) { // normal data
-                if (tmpAttr.attrVal <= attrThres) // numeric and no greater than
+                if (tmpAttr.attrVal < attrThres) // numeric and no greater than
                     this->left->addInstance(tmpInst, true);
                 else 
                     this->right->addInstance(tmpInst, true);
@@ -128,7 +188,7 @@ private:
             tmpInst = negInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
             if (tmpAttr.attrAvail) { // normal data
-                if (tmpAttr.attrVal <= attrThres) // numeric and no greater than
+                if (tmpAttr.attrVal < attrThres) // numeric and no greater than
                     this->left->addInstance(tmpInst, false);
                 else 
                     this->right->addInstance(tmpInst, false);
@@ -166,6 +226,11 @@ private:
         return true;   
     }
 
+    double calcGR(int leftP, int leftN) {
+        int m = this->posInstSet.size(), n = negInstSet.size();
+        return entropy(m, n) - entropy(leftP, leftN) - entropy(m - leftP, n - leftN);
+    }
+
     double entropy() { // by default, calculate the entropy before splitting  
         return entropy(this->posInstSet.size(), this->negInstSet.size());
     }
@@ -189,12 +254,19 @@ public:
         this->root = NULL; 
     };
 
+    void printTree() {
+        this->root->printSubTree(instSchema);
+    }
+
     bool train(vector<instance> &instances) {
+        cout << "start to train the tree!" << endl;
         this->root = new treeNode();
+        cout << "adding instances!" << endl;
         for (int i = 0; i < instances.size(); i++) // init a new treeNode with our instance
             root->addInstance(&(instances[i]), instances[i].flag);
+        cout << "splitting!" << endl;
         root->split(instSchema);
-
+        cout << "training is over!" << endl;
         return true;
     }
 
