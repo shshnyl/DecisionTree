@@ -3,7 +3,7 @@
 #include <vector>
 #include <cmath>
 #include "instance.h"
-#define GAINRATIOTHRES 0.01
+#define GAINRATIOTHRES 0.02
 
 using namespace std;
 
@@ -14,6 +14,15 @@ public:
             this->posInstSet.push_back(inst);
         else
             this->negInstSet.push_back(inst);
+    }
+
+    int countNodes() {
+        if (attrIdx == -1) {
+            return 1;
+        }
+        else {
+            return this->left->countNodes() + this->right->countNodes();
+        }
     }
 
     void split(schema &instSchema) { // split through the sub-tree
@@ -32,44 +41,38 @@ public:
         return;
     }
 
-    void printSubTree(schema &instSchema) {
-        cout << endl;
-        cout << this->toString(instSchema) << endl;
-        if (attrIdx != -1) {
-        cout << "threshold is: " << this->attrThres << endl;
-        this->left->printSubTree(instSchema);
-        this->right->printSubTree(instSchema);
+    bool classify(schema &instSchema, instance &inst) {
+        if (attrIdx == -1) {
+            return (posInstSet.size() >= negInstSet.size());
         }
         else {
-            cout << "positive ones: ";
-            for (int i = 0; i < posInstSet.size(); i++) 
-                cout << posInstSet[i]->attrs[0].attrVal << " ";
-            cout << endl;
-            cout << "negative ones: ";
-            for (int i = 0; i < negInstSet.size(); i++) 
-                cout << negInstSet[i]->attrs[0].attrVal << " ";
-            cout << endl;
+            if (instSchema.attrTypes[attrIdx]) { // numeric
+                if (inst.attrs[attrIdx].attrVal < attrThres) { // left
+                    return this->left->classify(instSchema, inst);
+                }
+                else { // right
+                    return this->right->classify(instSchema, inst);
+                }
+            }
+            else { // nominal
+                // to be implemented
+                return false;
+            }
+        }
+        return false;
+    }
+
+    void printSubTree(schema &instSchema) {
+        if (attrIdx == -1) {
+            cout << "leaf node! Entropy: " << entropy() << ", pos: " << posInstSet.size() << ", neg: " << negInstSet.size() << endl;
+        }
+        else {
+            cout << "attr is: " << attrIdx << endl;
+            cout << "threshold is: " << this->attrThres << endl << endl;
+            this->left->printSubTree(instSchema);
+            this->right->printSubTree(instSchema);
         }
     }
-
-    string toString(schema &instSchema) { // to string
-        // leaf node
-        if (attrIdx == -1)
-            return "leaf node";
-        // internal node
-        string result = "";
-        result += "the attribute is: ";
-        result += instSchema.attrNames[attrIdx];
-        result += ", the type is: ";
-        if (instSchema.attrTypes[attrIdx]) 
-            result += "Numerical";
-        else
-            result += "Nominal";
-        //result += ", the threshold is: ";
-        //result += toString(this->attrThres);
-        return result;
-    }
-
 private:
     int attrIdx = -1; // index the attrs to split 
     double attrThres = 0.0; // if numeric type, left < attrThres, right >= attrThres; if nominal type 
@@ -91,6 +94,7 @@ private:
             else 
                 this->trySplitNominal(i, &threshold, &gainratio);
 
+            //cout << "curr gr: " << gainratio << endl;
             if (gainratio > maxGR) {
                 maxIdx = i;
                 maxThres = threshold;
@@ -230,7 +234,9 @@ private:
 
     double calcGR(int leftP, int leftN) {
         int m = this->posInstSet.size(), n = negInstSet.size();
-        return entropy(m, n) - entropy(leftP, leftN) - entropy(m - leftP, n - leftN);
+        int m1 = leftP, m2 = m - leftP, n1 = leftN, n2 = n - leftN;
+        double p1 = double(m1 + n1) / double(m + n), p2 = double(m2 + n2) / double(m + n);
+        return entropy(m, n) - p1 * entropy(m1, n1) - p2 * entropy(m2, n2);
     }
 
     double entropy() { // by default, calculate the entropy before splitting  
@@ -272,8 +278,24 @@ public:
         return true;
     }
 
-    bool classify(instance inst) {
-        return false;
+    bool predict(instance &inst) { // predict a single inst, return its predicted flag
+        return this->root->classify(instSchema, inst);
+    }
+
+    double validate(vector<instance> &instances) { // return the correct rate
+        int rightCount = 0, wrongCount = 0;
+        for (int i = 0; i < instances.size(); i++) {
+            instance tmpInst = instances[i];
+            if (tmpInst.flag == this->predict(tmpInst)) // hit!!!
+                rightCount++;
+            else // miss :-(
+                wrongCount++;
+        }
+        return double(rightCount) / double(rightCount + wrongCount);
+    }
+
+    int countNodes() {
+        return this->root->countNodes();
     }
 };
 

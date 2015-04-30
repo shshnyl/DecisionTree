@@ -1,5 +1,6 @@
 #include "tree.h"
 #include <vector>
+#include <ctime>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -58,11 +59,19 @@ int main() {
     file_train.close();
 
     // generate a decision tree
+    clock_t start, end;
+    start = clock();
     decisionTree dt(sc);
     dt.train(dataSet);
-
     //dt.printTree();
+    end = clock();
+    cout << "time to train the tree: " << double(end - start) / CLOCKS_PER_SEC << endl;
+    start = clock();
+    cout << "correct rate: " << dt.validate(dataSet) << endl;
+    end = clock();
+    cout << "time to validate: " << double(end - start) / CLOCKS_PER_SEC << endl;
 
+    cout << "number of nodes: " << dt.countNodes() << endl; 
     return 0;
 }
 
