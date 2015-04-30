@@ -1,46 +1,60 @@
 #include "tree.h"
 #include <vector>
+#include <string>
 #include <iostream>
-
+#include <fstream>
+#include <sstream>
+#define NUMATTRS 13
+    
 using namespace std;
 
 int main() {
-    int a = 9, b = 7;
-    int data1[] = {123, 432, 343, 422, 323,533, 123, 422, 380};
-    int data2[] = {482, 729, 769, 839, 323, 877, 123};
-    vector<instance *> ori1, ori2, des;
-    vector<instance> data;
-    for (int i = 0; i < a; i++) {
-        instance *instPtr = new instance;
-        instPtr->flag = (i % 2 == 0);
-        instPtr->attrs[0].attrVal = data1[i];
-        instPtr->attrs[0].attrAvail = true;
-        ori1.push_back(instPtr);
-        data.push_back(*instPtr);
+    string filename = "btrain.csv";
+    vector<instance> dataSet;
+    ifstream fileTrain(filename);
+    if (!fileTrain.is_open()) 
+        return -1;
+    // create schema from the first line
+    schema sc(NUMATTRS); string attrname;
+    //bool attrtype[] = {true, true, false, true, true, true, true, true, true, true, true, true, true, true};
+    bool attrtype[] = {true, true, true, true, true, true, true, true, true, true, true, true, true};
+    for (int i = 0; i < NUMATTRS; i++) {
+        getline(fileTrain, attrname, ',');
+        sc.attrNames[i] = attrname;
+        sc.attrTypes[i] = attrtype[i];
     }
-    for (int i = 0; i < b; i++) {
-        instance *instPtr = new instance;
-        instPtr->flag = (i % 2 == 0);
-        instPtr->attrs[0].attrVal = data2[i];
-        instPtr->attrs[0].attrAvail = true;
-        ori2.push_back(instPtr);
-        data.push_back(*instPtr);
+    getline(fileTrain, attrname, ','); // get rid of the "winner"
+    cout << attrname << endl;
+
+    // create instance line by line
+    int count = 0; string attrvalue; 
+    while (fileTrain.good() && count < 10) {
+        count++;
+        instance inst(NUMATTRS);
+        for (int j = 0; j < NUMATTRS && fileTrain.good(); j++) {
+            getline(fileTrain, attrvalue, ',');
+            if (attrvalue == "?") {
+                inst.attrs[j].attrAvail = false;
+                inst.attrs[j].attrVal = -1.0;
+                cout << attrvalue << endl;
+            } 
+            else {
+                inst.attrs[j].attrAvail = true;
+                istringstream tmp(attrvalue);
+                tmp >> inst.attrs[j].attrVal;
+                cout << inst.attrs[j].attrVal + 100000 << endl;
+            }
+        }
+        if (!fileTrain.good()) break; // not enough for 
+        getline(fileTrain, attrvalue, ',');
+        cout << "flag: " << attrvalue << endl;
+        if (attrvalue == "1") 
+            inst.flag = true;
+        else 
+            inst.flag = false;
     }
-    sortInstances(0, ori1, ori2, des);
 
-    for (int i = 0; i < a + b; i++) 
-        cout << "sorted result: " << des[i]->attrs[0].attrVal << ", " << des[i]->flag << endl;
-    cout << endl;
-
-//    for (int i = 0; i < a + b; i++) 
-//        cout << "whole data: " << data[i].attrs[0].attrVal << ", " << data[i].flag << endl;
-
-
-    schema sc; sc.attrTypes[0] = true; sc.attrNames[0] = "test col";
-    decisionTree dt(sc);
-
-    dt.train(data);
-    dt.printTree();
+    fileTrain.close();
     return 0;
-
 }
+

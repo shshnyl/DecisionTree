@@ -2,7 +2,6 @@
 #include <queue>
 #include <vector>
 #include <iostream>
-#define NUMATTRS 1
 
 using namespace std;
 
@@ -11,15 +10,41 @@ struct attribute { // attribute
     double attrVal; // value of the attribute
 };
 
-struct instance { // instance
-    attribute attrs[NUMATTRS];
+class instance { // instance
+public:
+    vector<attribute> attrs;
     bool flag;
+
+    instance(int num) {
+        this->attrs.resize(num);
+        this->flag = true;
+    }
+
+    instance(int num, bool f) {
+        this->attrs.resize(num);
+        this->flag = f;
+    }
 };
 
-struct schema { // schema for all the instances in a certain set(subtree)
-    int attrNum = NUMATTRS;
-    string attrNames[NUMATTRS]; // names for the attrs
-    bool attrTypes[NUMATTRS]; // true for numeric ones, false for nominal ones
+class schema { // schema for all the instances in a certain set(subtree)
+public:
+    int attrNum;
+    vector<string> attrNames; // names for the attrs
+    vector<bool> attrTypes; // true for numeric ones, false for nominal ones
+
+    schema() {;}
+
+    schema(int num) {
+        this->attrNum = num;
+        this->attrNames.resize(num);
+        this->attrTypes.resize(num);
+    }
+
+    void copy(schema &sc) {
+        this->attrNum = sc.attrNum;
+        this->attrNames = sc.attrNames;
+        this->attrTypes = sc.attrTypes;
+    }
 };
 
 class instComparator {
@@ -56,7 +81,4 @@ void sortInstances(int attrIdx, vector<instance *> &ori1, vector<instance *> ori
     ori.insert(ori.end(), ori1.begin(), ori1.end());
     ori.insert(ori.end(), ori2.begin(), ori2.end());
     sortInstances(attrIdx, ori, des);
-    //sortInstances(attrIdx, ori1, sorted1);
-    //sortInstances(attrIdx, ori2, sorted2);
-    //mergeSortedInstances(attrIdx, sorted1, sorted2, des);
 }

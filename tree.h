@@ -90,7 +90,6 @@ private:
                 this->trySplitNumeric(i, &threshold, &gainratio);
             else 
                 this->trySplitNominal(i, &threshold, &gainratio);
-            cout << "curr gain ratio is: " << gainratio << endl;
 
             if (gainratio > maxGR) {
                 maxIdx = i;
@@ -117,11 +116,12 @@ private:
         vector<instance *> sortedInst;
         sortInstances(index, posInstSet, negInstSet, sortedInst);
         
+        /*
         cout << "sorted: ";
         for (int i = 0; i < sortedInst.size(); i++) 
             cout << sortedInst[i]->attrs[index].attrVal << ", ";
         cout << endl; 
-        
+        */
         // traverse to find the optimal threshold
         maxThres = (sortedInst[0]->attrs[index]).attrVal;
         maxGR = this->calcGR(numLeftP, numLeftN);
@@ -132,6 +132,7 @@ private:
 
             double tmpThres = (sortedInst[i]->attrs[index]).attrVal;
             double tmpGR = this->calcGR(numLeftP, numLeftN); 
+            /*
             if (tmpThres > maxThres) {
             cout << tmpThres << ", " << tmpGR << endl;
             cout << numLeftP << ", " << numLeftN << endl;
@@ -139,6 +140,7 @@ private:
             cout << entropy(numLeftP, numLeftN) << ", ";
             cout << entropy(posInstSet.size() - numLeftP, negInstSet.size() - numLeftN) << endl;
             }
+            */
             if (tmpThres > maxThres) {
                 if (tmpGR > maxGR) {
                     maxThres = tmpThres;
@@ -249,8 +251,8 @@ private:
     treeNode * root = NULL; // default an empty tree
     schema instSchema;
 public:
-    decisionTree(schema dataSchema) {
-        this->instSchema = dataSchema;
+    decisionTree(schema &dataSchema) {
+        this->instSchema.copy(dataSchema);
         this->root = NULL; 
     };
 
@@ -266,7 +268,7 @@ public:
             root->addInstance(&(instances[i]), instances[i].flag);
         cout << "splitting!" << endl;
         root->split(instSchema);
-        cout << "training is over!" << endl;
+        cout << "training is over!" << endl << endl;
         return true;
     }
 
