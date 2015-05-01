@@ -16,12 +16,35 @@ public:
             this->negInstSet.push_back(inst);
     }
 
-    int countNodes() {
+    int countNodes(schema &instSchema) {
         if (attrIdx == -1) {
             return 1;
         }
         else {
-            return this->left->countNodes() + this->right->countNodes();
+            if (instSchema.attrTypes[attrIdx]) // numeric data
+                return 1 + this->left->countNodes(instSchema) + this->right->countNodes(instSchema);
+            else { // nominal data
+                int sum = 0;
+                for (int i = 0; i < children.size(); i++)
+                    sum += (children[i])->countNodes(instSchema);
+                return 1 + sum;
+            }
+        }
+    }
+
+    int countLeafNodes(schema &instSchema) {
+        if (attrIdx == -1) {
+            return 1;
+        }
+        else {
+            if (instSchema.attrTypes[attrIdx]) // numeric data
+                return this->left->countNodes(instSchema) + this->right->countNodes(instSchema);
+            else { // nominal data
+                int sum = 0;
+                for (int i = 0; i < children.size(); i++)
+                    sum += (children[i])->countNodes(instSchema);
+                return sum;
+            }
         }
     }
 
@@ -33,8 +56,8 @@ public:
                     this->right->split(instSchema);
                 }
                 else { // nominal
-                    for (int i = 0; i < this->children.size(); i++)
-                        (this->children[i])->split(instSchema);
+                    for (int i = 0; i < children.size(); i++)
+                        (children[i])->split(instSchema);
                 }
             }
         }
@@ -43,23 +66,23 @@ public:
 
     bool classify(schema &instSchema, instance &inst) {
         if (attrIdx == -1) {
-            return (posInstSet.size() >= negInstSet.size());
+            return (posInstSet.size() > negInstSet.size());
         }
         else {
             if (instSchema.attrTypes[attrIdx]) { // numeric
-                if (inst.attrs[attrIdx].attrVal < attrThres) { // left
+                if (inst.attrs[attrIdx].attrVal < attrThres) // left
                     return this->left->classify(instSchema, inst);
-                }
-                else { // right
+                else // right
                     return this->right->classify(instSchema, inst);
-                }
             }
             else { // nominal
-                // to be implemented
-                return false;
+                for (int i = 0; i < children.size(); i++) {
+                    if (isEqual(inst.attrs[attrIdx].attrVal, attrLabels[i])) 
+                        return children[i]->classify(instSchema, inst);
+                }
+                return false; // just in case of testing data we never met in training data
             }
         }
-        return false;
     }
 
     void printSubTree(schema &instSchema) {
@@ -69,36 +92,45 @@ public:
         else {
             cout << "attr is: " << attrIdx << endl;
             cout << "threshold is: " << this->attrThres << endl << endl;
-            this->left->printSubTree(instSchema);
-            this->right->printSubTree(instSchema);
+            if (instSchema.attrTypes[attrIdx]) {
+                this->left->printSubTree(instSchema);
+                this->right->printSubTree(instSchema);
+            }
+            else {
+                for (int i = 0; i < children.size(); i++) 
+                    children[i]->printSubTree(instSchema);
+            }
         }
     }
+
 private:
     int attrIdx = -1; // index the attrs to split 
     double attrThres = 0.0; // if numeric type, left < attrThres, right >= attrThres; if nominal type 
     vector<instance *> posInstSet; // set of positive instances TO BE split
     vector<instance *> negInstSet; // set of negative instances TO BE split
     treeNode * left = NULL, * right = NULL; // children ptrs when split over numeric attr
+    vector<double> attrLabels; // children ptrs' label
     vector<treeNode *> children; // children ptrs when split over nominal attr
     
     bool trySplit(schema &instSchema) { // if the node need to be split
         if (posInstSet.size() == 0 || negInstSet.size() == 0) 
             return false;
         int maxIdx = -1;
-        double maxThres = 0.0;
-        double maxGR = GAINRATIOTHRES;
+        double maxThres = 0.0, maxGR = GAINRATIOTHRES;
+        vector<double> maxLabels;
         for (int i = 0; i < instSchema.attrNum; i++) { // looking for the best attr to split over
-            double threshold, gainratio;
+            double threshold = 0.0, gainratio = 0.0;
+            vector<double> labels;
             if (instSchema.attrTypes[i])
-                this->trySplitNumeric(i, &threshold, &gainratio);
+                this->trySplitNumeric(i, threshold, gainratio);
             else 
-                this->trySplitNominal(i, &threshold, &gainratio);
+                this->trySplitNominal(i, labels, gainratio);
 
-            //cout << "curr gr: " << gainratio << endl;
             if (gainratio > maxGR) {
                 maxIdx = i;
-                maxThres = threshold;
                 maxGR = gainratio;
+                maxThres = threshold;
+                maxLabels = labels;
             }
         }
 
@@ -107,25 +139,17 @@ private:
         else {
             this->attrIdx = maxIdx;
             this->attrThres = maxThres;
+            this->attrLabels = maxLabels;
             return true;
         }
     }
 
-    void trySplitNumeric(int index, double *threshold, double *gr) { // split over numeric attr
-        // sort over the attribute first
-        // then traverse all the instances
+    void trySplitNumeric(int index, double &threshold, double &gr) { // split over numeric attr
         int numLeftP = 0, numLeftN = 0; // number of positive and negative ones in left subtree
         double maxThres = -1, maxGR = -1;
-        // sort
+        // sort first
         vector<instance *> sortedInst;
         sortInstances(index, posInstSet, negInstSet, sortedInst);
-        
-        /*
-        cout << "sorted: ";
-        for (int i = 0; i < sortedInst.size(); i++) 
-            cout << sortedInst[i]->attrs[index].attrVal << ", ";
-        cout << endl; 
-        */
         // traverse to find the optimal threshold
         maxThres = (sortedInst[0]->attrs[index]).attrVal;
         maxGR = this->calcGR(numLeftP, numLeftN);
@@ -133,18 +157,9 @@ private:
             // count
             if (sortedInst[i - 1]->flag) numLeftP++;
             else numLeftN++;
-
+            // update max gain tratio
             double tmpThres = (sortedInst[i]->attrs[index]).attrVal;
             double tmpGR = this->calcGR(numLeftP, numLeftN); 
-            /*
-            if (tmpThres > maxThres) {
-            cout << tmpThres << ", " << tmpGR << endl;
-            cout << numLeftP << ", " << numLeftN << endl;
-            cout << entropy() << ", "; 
-            cout << entropy(numLeftP, numLeftN) << ", ";
-            cout << entropy(posInstSet.size() - numLeftP, negInstSet.size() - numLeftN) << endl;
-            }
-            */
             if (tmpThres > maxThres) {
                 if (tmpGR > maxGR) {
                     maxThres = tmpThres;
@@ -153,14 +168,48 @@ private:
             }
         }
         // return
-        *threshold = maxThres; 
-        *gr = maxGR;
+        threshold = maxThres; 
+        gr = maxGR;
     }
 
-    void trySplitNominal(int index, double *threshold, double *gr) { // split over nominal attr
-        // to be impletmented
-        *threshold = 0.0;
-        *gr = -1;
+    void trySplitNominal(int index, vector<double> &labels, double &gr) { // split over nominal attr
+        instance *tmpInst; attribute tmpAttr;
+        vector<int> numP, numN;
+        for (int i = 0; i < posInstSet.size(); i++) {
+            tmpInst = posInstSet[i]; tmpAttr = tmpInst->attrs[index];
+            int labelIdx = findInVector(labels, tmpAttr.attrVal);
+            if (-1 == labelIdx) {
+                labels.push_back(tmpAttr.attrVal);
+                numP.push_back(0); numN.push_back(0);
+                labelIdx = labels.size() - 1;
+            }
+            if (tmpInst->flag) 
+                numP[labelIdx]++;
+            else 
+                numN[labelIdx]++;
+        }
+        for (int i = 0; i < negInstSet.size(); i++) {
+            tmpInst = negInstSet[i]; tmpAttr = tmpInst->attrs[index];
+            int labelIdx = findInVector(labels, tmpAttr.attrVal);
+            if (-1 == labelIdx) {
+                labels.push_back(tmpAttr.attrVal);
+                numP.push_back(0); numN.push_back(0);
+                labelIdx = labels.size() - 1;
+            }
+            if (tmpInst->flag) 
+                numP[labelIdx]++;
+            else 
+                numN[labelIdx]++;
+        }
+        gr = this->calcGR(numP, numN);
+    }
+
+    int findInVector(vector<double> &labels, double key) {
+        for (int i = 0; i < labels.size(); i++) {
+            if(isEqual(labels[i], key))
+                return i;
+        }
+        return -1;
     }
 
     bool doSplit(schema &instSchema) {
@@ -180,56 +229,57 @@ private:
         for (int i = 0; i < posInstSet.size(); i++) {
             tmpInst = posInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
-            if (tmpAttr.attrAvail) { // normal data
-                if (tmpAttr.attrVal < attrThres) // numeric and no greater than
-                    this->left->addInstance(tmpInst, true);
-                else 
-                    this->right->addInstance(tmpInst, true);
-            }
-            else { // bad data
-                ; // to be implemented
-            }
+            if (tmpAttr.attrVal < attrThres) // smaller than
+                this->left->addInstance(tmpInst, true);
+            else 
+                this->right->addInstance(tmpInst, true);
         }
         for (int i = 0; i < negInstSet.size(); i++) {
             tmpInst = negInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
-            if (tmpAttr.attrAvail) { // normal data
-                if (tmpAttr.attrVal < attrThres) // numeric and no greater than
-                    this->left->addInstance(tmpInst, false);
-                else 
-                    this->right->addInstance(tmpInst, false);
-            }
-            else { // bad data
-                ; // to be implemented
-            }
+            if (tmpAttr.attrVal < attrThres) // smaller than
+                this->left->addInstance(tmpInst, false);
+            else 
+                this->right->addInstance(tmpInst, false);
         }
         return true;
     }
 
     bool doSplitNominal() { // do the split over given attr on each value 
-         if (attrIdx == -1) 
+        if (attrIdx == -1) 
             return false;
         // do the split over attr with index attrIdx, and threshold attrThres
+        for (int i = 0; i < attrLabels.size(); i++) {
+            treeNode *tmp = new treeNode();
+            children.push_back(tmp);
+        }
         instance *tmpInst; attribute tmpAttr;
         for (int i = 0; i < posInstSet.size(); i++) {
             tmpInst = posInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
-            if (tmpAttr.attrAvail) { // normal data
-            }
-            else { // bad data
-                ; // to be implemented
+            for (int i = 0; i < children.size(); i++) {
+                if (isEqual(tmpAttr.attrVal, attrLabels[i])) {
+                    children[i]->addInstance(tmpInst, true);
+                    break;
+                }
             }
         }
         for (int i = 0; i < negInstSet.size(); i++) {
             tmpInst = negInstSet[i];
             tmpAttr = (tmpInst->attrs)[attrIdx];
-            if (tmpAttr.attrAvail) { // normal data
-            }
-            else { // bad data
-                ; // to be implemented
+            for (int i = 0; i < children.size(); i++) {
+                if (isEqual(tmpAttr.attrVal, attrLabels[i])) {
+                    children[i]->addInstance(tmpInst, false);
+                    break;
+                }
             }
         }
         return true;   
+    }
+
+    bool isEqual(double d1, double d2) {
+        double threshold = 0.000001;
+        return (d1 - d2 < threshold) && (d2 - d1 < threshold);
     }
 
     double calcGR(int leftP, int leftN) {
@@ -237,6 +287,17 @@ private:
         int m1 = leftP, m2 = m - leftP, n1 = leftN, n2 = n - leftN;
         double p1 = double(m1 + n1) / double(m + n), p2 = double(m2 + n2) / double(m + n);
         return entropy(m, n) - p1 * entropy(m1, n1) - p2 * entropy(m2, n2);
+    }
+
+    double calcGR(vector<int> &numP, vector<int> &numN) {
+        int len = numP.size(), m = this->posInstSet.size(), n = negInstSet.size();
+        double result = entropy(m, n);
+        for (int i = 0; i < len; i++) {
+            double m1 = numP[i], n1 = numN[i];
+            double p1 = double(m1 + n1) / double(m + n);
+            result -= p1 * entropy(m1, n1);
+        }
+        return result;
     }
 
     double entropy() { // by default, calculate the entropy before splitting  
@@ -295,7 +356,7 @@ public:
     }
 
     int countNodes() {
-        return this->root->countNodes();
+        return this->root->countNodes(instSchema);
     }
 };
 

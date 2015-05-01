@@ -18,12 +18,13 @@ int main() {
 
     // create schema from the first line
     schema sc(NUMATTRS); 
-    bool attrtype[] = {true, true, true, true, true, true, true, true, true, true, true, true, true};
+    bool attr_type[] = {true, true, false, true, true, true, false, false, true, true, false, true, true};
+    //bool attr_type[] = {true, true, true, true, true, true, true, true, true, true, true, true, true};
     getline(file_train, line); istringstream sc_parser(line);
     for (int i = 0; i < NUMATTRS; i++) {
         getline(sc_parser, attr_val, ',');
         sc.attrNames[i] = attr_val;
-        sc.attrTypes[i] = attrtype[i];
+        sc.attrTypes[i] = attr_type[i];
     }
     getline(sc_parser, attr_val, ','); // get rid of the "winner"
 
@@ -63,14 +64,13 @@ int main() {
     start = clock();
     decisionTree dt(sc);
     dt.train(dataSet);
-    //dt.printTree();
+    dt.printTree();
     end = clock();
     cout << "time to train the tree: " << double(end - start) / CLOCKS_PER_SEC << endl;
     start = clock();
     cout << "correct rate: " << dt.validate(dataSet) << endl;
     end = clock();
     cout << "time to validate: " << double(end - start) / CLOCKS_PER_SEC << endl;
-
     cout << "number of nodes: " << dt.countNodes() << endl; 
     return 0;
 }
