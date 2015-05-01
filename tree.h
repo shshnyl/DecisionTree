@@ -10,7 +10,6 @@ using namespace std;
 
 class treeNode {
 public:
-
     ~treeNode() {
         if (this->left) 
             delete this->left;
@@ -92,7 +91,13 @@ public:
     void printDNF(schema &instSchema, string dnf) {
         string result;
         if (attrIdx == -1) { // leaf node
-            cout << dnf << endl << endl;
+            cout << dnf;
+            if (posInstSet.size() > negInstSet.size()) {
+                cout << "= TRUE!" << endl << endl;
+            }
+            else {
+                cout << "= FALSE!" << endl << endl;
+            }
         }
         else {
             if (instSchema.attrTypes[attrIdx]) { // numeric
