@@ -60,7 +60,7 @@ void readInstances(string filename, vector<instance> &dataset, bool isTest) {
         else 
             delete inst_ptr;
     }
-    cout << dataset.size() << endl << endl; 
+    cout << dataset.size() << endl; 
     file.close();
 }
 
