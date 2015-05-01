@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <stdlib.h>
 #include "instance.h"
 #define GAINRATIOTHRES 0.03
 
@@ -9,6 +10,17 @@ using namespace std;
 
 class treeNode {
 public:
+
+    ~treeNode() {
+        if (this->left) 
+            delete this->left;
+        if (this->right)
+            delete this->right;
+        for (int i = 0; i < children.size(); i++) {
+            if (children[i])
+                delete children[i];
+        }
+    }
     void addInstance(instance * inst, bool isPositive) { // add instance
         if (isPositive)
             this->posInstSet.push_back(inst);
@@ -351,11 +363,10 @@ public:
         this->root = NULL; 
     };
 
-    void printDNF() {
-        this->root->printDNF(instSchema, "True");
+    ~decisionTree() {
+        delete this->root;
     }
-
-    bool train(vector<instance> &instances) {
+    bool train(vector<instance> &instances) { // train with all the instances
         cout << "start to train the tree!" << endl;
         this->root = new treeNode();
         cout << "adding instances!" << endl;
@@ -364,6 +375,20 @@ public:
         cout << "splitting!" << endl;
         root->split(instSchema);
         cout << "training is over!" << endl << endl;
+        return true;
+    }
+
+    bool train(vector<instance> &instances, int seed, double len_p) {
+        int count = 0, rand_max = 10000;
+        this->root = new treeNode(); srand(seed);
+        for (int i = 0; i < instances.size(); i++) {
+            if (rand() % rand_max <= len_p * rand_max){ 
+                root->addInstance(&(instances[i]), instances[i].flag);
+                count++;
+            }
+        }
+        cout << "random seed is: " << seed << ", number of instances is:" << count << endl; 
+        root->split(instSchema);
         return true;
     }
 
@@ -383,8 +408,8 @@ public:
         return double(rightCount) / double(rightCount + wrongCount);
     }
 
-    vector<int> countAttrNum(int maxDepth) {
-        return this->root->countAttrNum(instSchema, maxDepth);
+    void printDNF() {
+        this->root->printDNF(instSchema, "True");
     }
 
     int countLeafNodes() {
@@ -393,6 +418,16 @@ public:
     
     int countNodes() {
         return this->root->countNodes(instSchema);
+    }
+
+    void countAttrNum(int maxDepth) {
+        vector<int> countResult;
+        countResult = this->root->countAttrNum(instSchema, maxDepth);
+        cout << "number of times being selected as splitting attr, " << "maxDepth = " << maxDepth << endl;
+        cout << instSchema.attrNames[0] << ": " << countResult[0];
+        for (int i = 1; i < instSchema.attrNum; i++)
+            cout << ", " << instSchema.attrNames[i] << ": " << countResult[i];
+        cout << endl;
     }
 };
 
