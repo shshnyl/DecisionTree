@@ -32,9 +32,7 @@ public:
     vector<string> attrNames; // names for the attrs
     vector<bool> attrTypes; // true for numeric ones, false for nominal ones
 
-    schema() {;}
-
-    schema(int num) {
+    void reserve(int num) {
         this->attrNum = num;
         this->attrNames.resize(num);
         this->attrTypes.resize(num);

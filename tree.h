@@ -3,7 +3,7 @@
 #include <vector>
 #include <cmath>
 #include "instance.h"
-#define GAINRATIOTHRES 0.02
+#define GAINRATIOTHRES 0.03
 
 using namespace std;
 
