@@ -38,11 +38,11 @@ public:
         }
         else {
             if (instSchema.attrTypes[attrIdx]) // numeric data
-                return this->left->countNodes(instSchema) + this->right->countNodes(instSchema);
+                return this->left->countLeafNodes(instSchema) + this->right->countLeafNodes(instSchema);
             else { // nominal data
                 int sum = 0;
                 for (int i = 0; i < children.size(); i++)
-                    sum += (children[i])->countNodes(instSchema);
+                    sum += (children[i])->countLeafNodes(instSchema);
                 return sum;
             }
         }
@@ -355,6 +355,10 @@ public:
         return double(rightCount) / double(rightCount + wrongCount);
     }
 
+    int countLeafNodes() {
+        return this->root->countLeafNodes(instSchema);
+    }
+    
     int countNodes() {
         return this->root->countNodes(instSchema);
     }
