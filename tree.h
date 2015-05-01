@@ -48,6 +48,52 @@ public:
         }
     }
 
+    vector<int> countAttrNum(schema &instSchema, int maxDepth) { // couting attr nums in the first maxDepth levels
+        vector<int> result(instSchema.attrNum, 0);
+        if (attrIdx == -1 || maxDepth == 0) { // if -1, means we do not limit the maxDepth
+            return result;
+        }
+        else {
+            if (instSchema.attrTypes[attrIdx]) { // numeric data
+                vector<int> tmp = this->left->countAttrNum(instSchema, maxDepth - 1);
+                for (int i = 0; i < instSchema.attrNum; i++)
+                    result[i] += tmp[i];
+                tmp = this->right->countAttrNum(instSchema, maxDepth - 1);
+                for (int i = 0; i < instSchema.attrNum; i++)
+                    result[i] += tmp[i];
+                result[attrIdx]++;
+                return result;
+            }
+            else { // nominal data
+                vector<int> tmp;
+                for (int i = 0; i < children.size(); i++) {
+                    tmp = (children[i])->countAttrNum(instSchema, maxDepth - 1);
+                    for (int j = 0; j < instSchema.attrNum; j++) 
+                        result[j] += tmp[j];
+                }
+                result[attrIdx]++;
+                return result;
+            }
+        }
+    }
+
+    void printDNF(schema &instSchema, string dnf) {
+        string result;
+        if (attrIdx == -1) { // leaf node
+            cout << dnf << endl << endl;
+        }
+        else {
+            if (instSchema.attrTypes[attrIdx]) { // numeric
+                this->left->printDNF(instSchema, dnf + " AND " + "(" + instSchema.attrNames[attrIdx] + " < " + to_string(attrThres) + ")");
+                this->right->printDNF(instSchema, dnf + " AND " + "(" + instSchema.attrNames[attrIdx] + " >= " + to_string(attrThres) + ")");
+            }
+            else { // nominal
+                for (int i = 0; i < children.size(); i++) 
+                    children[i]->printDNF(instSchema, dnf + " AND " + "(" + instSchema.attrNames[attrIdx] + " == " + to_string(attrLabels[attrIdx]) + ")");
+            }
+        }
+    }
+
     void split(schema &instSchema) { // split through the sub-tree
         if (trySplit(instSchema)) { // can split
             if (doSplit(instSchema)) { // successfully split the data
@@ -81,24 +127,6 @@ public:
                         return children[i]->classify(instSchema, inst);
                 }
                 return false; // just in case of testing data we never met in training data
-            }
-        }
-    }
-
-    void printSubTree(schema &instSchema) {
-        if (attrIdx == -1) {
-            cout << "leaf node! Entropy: " << entropy() << ", pos: " << posInstSet.size() << ", neg: " << negInstSet.size() << endl;
-        }
-        else {
-            cout << "attr is: " << attrIdx << endl;
-            cout << "threshold is: " << this->attrThres << endl << endl;
-            if (instSchema.attrTypes[attrIdx]) {
-                this->left->printSubTree(instSchema);
-                this->right->printSubTree(instSchema);
-            }
-            else {
-                for (int i = 0; i < children.size(); i++) 
-                    children[i]->printSubTree(instSchema);
             }
         }
     }
@@ -323,8 +351,8 @@ public:
         this->root = NULL; 
     };
 
-    void printTree() {
-        this->root->printSubTree(instSchema);
+    void printDNF() {
+        this->root->printDNF(instSchema, "True");
     }
 
     bool train(vector<instance> &instances) {
@@ -353,6 +381,10 @@ public:
                 wrongCount++;
         }
         return double(rightCount) / double(rightCount + wrongCount);
+    }
+
+    vector<int> countAttrNum(int maxDepth) {
+        return this->root->countAttrNum(instSchema, maxDepth);
     }
 
     int countLeafNodes() {

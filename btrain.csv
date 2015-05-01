@@ -1,4 +1,4 @@
-winpercent, oppwinpercent, weather, temperature, numinjured, oppnuminjured, startingpitcher, oppstartingpitcher, dayssincegame, oppdayssincegame, homeaway, rundifferential, opprundifferential, winner
+winpercent,oppwinpercent,weather,temperature,numinjured,oppnuminjured,startingpitcher,oppstartingpitcher,dayssincegame,oppdayssincegame,homeaway,rundifferential,opprundifferential,winner
 0.645876791537,?,1,61.1310944366,2.0,2.0,?,5,1.0,3.0,1,71.0,19.0,1
 0.543700372872,0.664659243729,?,65.3913383919,1.0,-1.0,2,3,2.0,3.0,0,58.0,53.0,1
 0.415205135337,0.472524343433,0,66.8762092383,1.0,3.0,3,5,2.0,1.0,0,17.0,54.0,0
